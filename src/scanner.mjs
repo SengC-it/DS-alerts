@@ -371,20 +371,21 @@ async function sendEmail(signals) {
   }
 
   const emoji = signals.length === 1 ? (signals[0].direction === 'long' ? '🟢' : '🔴') : '📊';
-  const subject = `${emoji} [DS-Alerts] ${signals.length} Signal${signals.length > 1 ? 's' : ''} Detected`;
+  const subject = `${emoji} [DS-Alerts] 检测到${signals.length}个信号`;
 
+  const DIM_CN = { volume: '放量', OI: '持仓量', funding: '资金费率', btc_trend: 'BTC趋势', volatility: '波动率', mtf: '多周期' };
   const rows = signals.map(s => {
-    const d = s.direction === 'long' ? 'LONG' : 'SHORT';
+    const d = s.direction === 'long' ? '做多' : '做空';
     const dc = s.direction === 'long' ? '#27AE60' : '#E74C3C';
     const rr = Math.abs(s.tp - s.entry) / Math.abs(s.entry - s.sl);
-    const dims = s.dimensions.join(' + ');
+    const dims = s.dimensions.map(d => DIM_CN[d] || d).join(' + ');
     const filterInfo = Object.entries(s.details || {})
-      .map(([k, v]) => `${k}: ${v.passed ? '✓' : '✗ ' + (v.reason || '')}`)
+      .map(([k, v]) => `${DIM_CN[k] || k}: ${v.passed ? '✓' : '✗ ' + (v.reason || '')}`)
       .join(' | ');
-    return `<tr><td style="padding:10px;border-bottom:1px solid #eee"><strong style="color:${dc};font-size:16px">${d}</strong><br><span style="font-size:20px;font-weight:bold">${s.base}/USDT</span> <span style="color:#888">${s.timeframe} | ${s.strategy}</span></td><td style="padding:10px;border-bottom:1px solid #eee;font-size:13px">Entry: <b>${s.entry.toFixed(4)}</b><br>SL: <span style="color:#E74C3C">${s.sl.toFixed(4)}</span> | TP: <span style="color:#27AE60">${s.tp.toFixed(4)}</span><br>R:R ${rr.toFixed(1)}:1</td><td style="padding:10px;border-bottom:1px solid #eee;font-size:12px">Filters: ${dims}<br><span style="font-size:11px;color:#888">${filterInfo}</span><br>Backtest: PF ${s.profitFactor} | WR ${s.winRate}%</td></tr>`;
+    return `<tr><td style="padding:10px;border-bottom:1px solid #eee"><strong style="color:${dc};font-size:16px">${d}</strong><br><span style="font-size:20px;font-weight:bold">${s.base}/USDT</span> <span style="color:#888">${s.timeframe} | ${s.strategy}</span></td><td style="padding:10px;border-bottom:1px solid #eee;font-size:13px">入场: <b>${s.entry.toFixed(4)}</b><br>止损: <span style="color:#E74C3C">${s.sl.toFixed(4)}</span> | 止盈: <span style="color:#27AE60">${s.tp.toFixed(4)}</span><br>盈亏比 ${rr.toFixed(1)}:1</td><td style="padding:10px;border-bottom:1px solid #eee;font-size:12px">过滤: ${dims}<br><span style="font-size:11px;color:#888">${filterInfo}</span><br>回测: PF ${s.profitFactor} | 胜率 ${s.winRate}%</td></tr>`;
   }).join('');
 
-  const html = `<div style="font-family:Arial,sans-serif;max-width:650px;margin:0 auto"><div style="background:#1B3A5C;color:white;padding:14px;border-radius:8px 8px 0 0"><h2 style="margin:0">DS-Alerts Signal (${new Date().toISOString().slice(0,16)})</h2><p style="margin:4px 0 0;opacity:0.8;font-size:12px">OKX USDT Perpetual | Data-Driven by Ablation Study</p></div><table style="width:100%;border-collapse:collapse">${rows}</table><div style="background:#f8f8f8;padding:10px;border-radius:0 0 8px 8px;font-size:10px;color:#888;text-align:center">Automated signal. Trade at your own risk.</div></div>`;
+  const html = `<div style="font-family:Arial,sans-serif;max-width:650px;margin:0 auto"><div style="background:#1B3A5C;color:white;padding:14px;border-radius:8px 8px 0 0"><h2 style="margin:0">DS-Alerts 交易信号 (${new Date().toISOString().slice(0,16)})</h2><p style="margin:4px 0 0;opacity:0.8;font-size:12px">OKX USDT永续 | 数据驱动 · 回测验证</p></div><table style="width:100%;border-collapse:collapse">${rows}</table><div style="background:#f8f8f8;padding:10px;border-radius:0 0 8px 8px;font-size:10px;color:#888;text-align:center">自动信号提醒，投资需谨慎，盈亏自负</div></div>`;
 
   try {
     const nodemailer = await import('nodemailer');
