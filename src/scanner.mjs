@@ -359,15 +359,14 @@ async function isInCooldown(instId, direction, timeframe) {
   return data.length > 0;
 }
 
-// ==================== 邮件 (Brevo API) ====================
+// ==================== 邮件 (Gmail SMTP) ====================
 async function sendEmail(signals) {
-  const brevoKey = process.env.BREVO_API_KEY;
   const gmailUser = process.env.GMAIL_USER;
   const gmailPass = process.env.GMAIL_APP_PASSWORD;
   const to = process.env.ALERT_EMAIL || 'sheng.chi@qq.com';
 
-  if (!brevoKey && (!gmailUser || !gmailPass)) {
-    console.log('[Email] No email credentials, skipping');
+  if (!gmailUser || !gmailPass) {
+    console.log('[Email] Missing GMAIL_USER / GMAIL_APP_PASSWORD, skipping');
     return false;
   }
 
@@ -387,33 +386,13 @@ async function sendEmail(signals) {
 
   const html = `<div style="font-family:Arial,sans-serif;max-width:650px;margin:0 auto"><div style="background:#1B3A5C;color:white;padding:14px;border-radius:8px 8px 0 0"><h2 style="margin:0">DS-Alerts Signal (${new Date().toISOString().slice(0,16)})</h2><p style="margin:4px 0 0;opacity:0.8;font-size:12px">OKX USDT Perpetual | Data-Driven by Ablation Study</p></div><table style="width:100%;border-collapse:collapse">${rows}</table><div style="background:#f8f8f8;padding:10px;border-radius:0 0 8px 8px;font-size:10px;color:#888;text-align:center">Automated signal. Trade at your own risk.</div></div>`;
 
-  // 优先用 Brevo (REST API, 最简单)
-  if (brevoKey) {
-    try {
-      const senderEmail = gmailUser || 'noreply@ds-alerts.com';
-      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: { 'api-key': brevoKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sender: { name: 'DS-Alerts', email: senderEmail }, to: [{ email: to }], subject, htmlContent: html }),
-      });
-      if (res.ok) { console.log(`[Email] Sent via Brevo to ${to}`); return true; }
-      const err = await res.text();
-      console.error(`[Email] Brevo error: ${res.status} ${err}`);
-    } catch (e) { console.error(`[Email] Brevo failed: ${e.message}`); }
-  }
-
-  // 备选：Gmail SMTP (需 nodemailer)
-  if (gmailUser && gmailPass) {
-    try {
-      const nodemailer = await import('nodemailer');
-      const transporter = nodemailer.default.createTransport({ service: 'gmail', auth: { user: gmailUser, pass: gmailPass } });
-      await transporter.sendMail({ from: `"DS-Alerts" <${gmailUser}>`, to, subject, html });
-      console.log(`[Email] Sent via Gmail to ${to}`);
-      return true;
-    } catch (e) { console.error(`[Email] Gmail failed: ${e.message}`); }
-  }
-
-  return false;
+  try {
+    const nodemailer = await import('nodemailer');
+    const transporter = nodemailer.default.createTransport({ service: 'gmail', auth: { user: gmailUser, pass: gmailPass } });
+    await transporter.sendMail({ from: `"DS-Alerts" <${gmailUser}>`, to, subject, html });
+    console.log(`[Email] Sent via Gmail to ${to}`);
+    return true;
+  } catch (e) { console.error(`[Email] Gmail failed: ${e.message}`); return false; }
 }
 
 // ==================== 主扫描流程 ====================
