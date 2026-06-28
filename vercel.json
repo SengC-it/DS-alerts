@@ -1,8 +1,0 @@
-{
-  "regions": ["sin1"],
-  "functions": {
-    "src/app/api/scan/route.ts": {
-      "maxDuration": 60
-    }
-  }
-}

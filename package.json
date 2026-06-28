@@ -2,27 +2,11 @@
   "name": "ds-alerts",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "scan": "node src/scanner.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.8",
-    "next": "14.2.29",
-    "nodemailer": "^6.9.16",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "devDependencies": {
-    "@types/node": "^20.17.19",
-    "@types/nodemailer": "^6.4.17",
-    "@types/react": "^18.3.18",
-    "@types/react-dom": "^18.3.5",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.5.3",
-    "tailwindcss": "^3.4.17",
-    "typescript": "^5.7.3"
+    "nodemailer": "^6.9.16"
   }
 }

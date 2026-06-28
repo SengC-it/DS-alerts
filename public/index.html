@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DS-Alerts | Trading Signals</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#0a0a0f; color:#e5e7eb; min-height:100vh; }
+.container { max-width:1100px; margin:0 auto; padding:16px; }
+h1 { font-size:22px; color:#fff; }
+h2 { font-size:16px; color:#9ca3af; margin:20px 0 10px; font-weight:600; }
+.subtitle { font-size:12px; color:#6b7280; }
+.header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.refresh { font-size:11px; color:#6b7280; }
+
+/* Coins Grid */
+.coins { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; margin-bottom:16px; }
+.coin { background:#111118; border:1px solid #1f2937; border-radius:8px; padding:8px 10px; }
+.coin-name { font-weight:700; color:#fff; font-size:13px; }
+.coin-tf { color:#6b7280; font-size:11px; margin-left:6px; }
+.coin-strat { color:#9ca3af; font-size:11px; }
+.coin-stats { color:#6b7280; font-size:10px; margin-top:2px; }
+
+/* Scan Logs */
+.logs { background:#111118; border:1px solid #1f2937; border-radius:8px; overflow:hidden; margin-bottom:16px; }
+.logs table { width:100%; font-size:12px; border-collapse:collapse; }
+.logs th { color:#6b7280; text-align:left; padding:8px 12px; border-bottom:1px solid #1f2937; font-size:11px; }
+.logs td { padding:8px 12px; border-bottom:1px solid #1f293720; color:#9ca3af; }
+.logs .ok { color:#22c55e; }
+.logs .err { color:#ef4444; }
+
+/* Signals */
+.signals { display:flex; flex-direction:column; gap:8px; }
+.signal { background:#111118; border-radius:8px; padding:14px; }
+.signal.long { border-left:3px solid #22c55e40; }
+.signal.short { border-left:3px solid #ef444440; }
+.signal-header { display:flex; align-items:baseline; gap:8px; margin-bottom:6px; }
+.signal-dir { font-weight:700; font-size:15px; }
+.signal-dir.long { color:#22c55e; }
+.signal-dir.short { color:#ef4444; }
+.signal-sym { font-weight:700; font-size:18px; color:#fff; }
+.signal-meta { color:#6b7280; font-size:12px; }
+.signal-prices { display:flex; gap:20px; font-size:13px; margin:6px 0; }
+.signal-prices .label { color:#6b7280; font-size:11px; }
+.signal-prices .val { font-family:monospace; color:#e5e7eb; }
+.signal-prices .sl { color:#ef4444; }
+.signal-prices .tp { color:#22c55e; }
+.signal-filters { font-size:11px; color:#6b7280; }
+.filter-pass { color:#22c55e80; }
+.filter-fail { color:#ef444480; }
+.empty { text-align:center; color:#6b7280; padding:40px; background:#111118; border-radius:8px; font-size:14px; }
+.footer { text-align:center; padding:20px 0; font-size:11px; color:#374151; border-top:1px solid #1f2937; margin-top:20px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div>
+      <h1>DS-Alerts</h1>
+      <div class="subtitle">Data-Driven Trading Signals | Ablation Study Optimized</div>
+    </div>
+    <div class="refresh" id="refresh">Loading...</div>
+  </div>
+  <h2>Monitored Coins</h2>
+  <div class="coins" id="coins"></div>
+  <h2>Scan History</h2>
+  <div class="logs" id="logs"></div>
+  <h2>Recent Signals</h2>
+  <div id="signals"></div>
+  <div class="footer">DS-Alerts | Signals are for reference only, trade at your own risk</div>
+</div>
+
+<script>
+// Config (from ablation study, same as scanner)
+const COINS = [
+  {base:"UB",tf:"4h",strat:"rsi_trend",dims:["OI","btc_trend","volatility"],pf:5.11,wr:54.8},
+  {base:"LAB",tf:"4h",strat:"rsi_trend",dims:["btc_trend"],pf:2.62,wr:48.7},
+  {base:"MYX",tf:"4h",strat:"breakout",dims:["OI","btc_trend"],pf:2.96,wr:54.3},
+  {base:"H",tf:"4h",strat:"breakout",dims:["funding"],pf:2.58,wr:57.4},
+  {base:"BASED",tf:"1h",strat:"rsi_trend",dims:["btc_trend"],pf:5.29,wr:66.7},
+  {base:"DEXE",tf:"4h",strat:"bollinger_breakout",dims:["OI"],pf:2.82,wr:60.4},
+  {base:"BEAT",tf:"4h",strat:"breakout",dims:["volume","funding"],pf:2.34,wr:45.5},
+  {base:"GUA",tf:"4h",strat:"rsi_trend",dims:["OI","btc_trend"],pf:2.15,wr:45.5},
+  {base:"GUA",tf:"4h",strat:"ema_trend",dims:["btc_trend","volatility"],pf:3.30,wr:60.0},
+  {base:"BEAT",tf:"1h",strat:"rsi_trend",dims:["mtf"],pf:3.25,wr:61.0},
+  {base:"FARTCOIN",tf:"4h",strat:"bollinger_breakout",dims:["volatility"],pf:2.58,wr:56.8},
+  {base:"BASED",tf:"1h",strat:"breakout",dims:["volatility","mtf"],pf:3.56,wr:61.8},
+  {base:"LAB",tf:"1h",strat:"rsi_trend",dims:["btc_trend"],pf:2.88,wr:55.7},
+  {base:"AIN",tf:"4h",strat:"ema_cross",dims:["OI"],pf:2.10,wr:48.7},
+  {base:"GRASS",tf:"4h",strat:"rsi_trend",dims:["btc_trend"],pf:2.79,wr:56.3},
+  {base:"CLO",tf:"1h",strat:"rsi_trend",dims:["mtf"],pf:2.46,wr:50.0},
+  {base:"IP",tf:"4h",strat:"breakout",dims:["volatility"],pf:2.62,wr:54.1},
+  {base:"BAS",tf:"4h",strat:"breakout",dims:["volume"],pf:1.86,wr:53.1},
+  {base:"MMT",tf:"1h",strat:"rsi_trend",dims:["mtf"],pf:4.32,wr:66.7},
+  {base:"MYX",tf:"4h",strat:"ema_cross",dims:["volatility"],pf:2.96,wr:55.0},
+  {base:"SIREN",tf:"4h",strat:"bollinger_breakout",dims:["funding"],pf:1.41,wr:37.8},
+  {base:"STG",tf:"4h",strat:"breakout",dims:["OI"],pf:1.68,wr:45.6},
+];
+
+const DIM_LABELS = {volume:"Volume",OI:"OI",funding:"Funding",btc_trend:"BTC Trend",volatility:"Volatility",mtf:"MTF"};
+
+function fmtTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+function fmtPrice(p) { return p>=1000?p.toFixed(2):p>=1?p.toFixed(4):p.toFixed(6); }
+
+// Render coins
+document.getElementById('coins').innerHTML = COINS.map(c =>
+  `<div class="coin"><div><span class="coin-name">${c.base}</span><span class="coin-tf">${c.tf}</span></div><div class="coin-strat">${c.strat} | ${c.dims.map(d=>DIM_LABELS[d]||d).join('+')}</div><div class="coin-stats">PF ${c.pf} | WR ${c.wr}%</div></div>`
+).join('');
+
+// Supabase
+const SB_URL = document.currentScript?.dataset?.sbUrl || '';
+const SB_KEY = document.currentScript?.dataset?.sbKey || '';
+
+async function loadData() {
+  document.getElementById('refresh').textContent = 'Loading...';
+  
+  try {
+    // Direct REST API calls (no SDK needed)
+    const headers = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` };
+    
+    const [signals, logs] = await Promise.all([
+      fetch(`${SB_URL}/rest/v1/signals?select=*&order=created_at.desc&limit=50`, { headers }).then(r => r.json()),
+      fetch(`${SB_URL}/rest/v1/scan_logs?select=*&order=created_at.desc&limit=5`, { headers }).then(r => r.json()),
+    ]);
+
+    // Render logs
+    if (logs && logs.length > 0) {
+      document.getElementById('logs').innerHTML = `<table><thead><tr><th>Time</th><th>Scanned</th><th>Signals</th><th>Status</th></tr></thead><tbody>${logs.map(l => `<tr><td>${fmtTime(l.started_at)}</td><td>${l.coins_scanned}</td><td style="${l.signals_found>0?'color:#22c55e;font-weight:bold':''}">${l.signals_found}</td><td>${l.errors?'<span class="err">Error</span>':'<span class="ok">OK</span>'}</td></tr>`).join('')}</tbody></table>`;
+    }
+
+    // Render signals
+    if (signals && signals.length > 0) {
+      document.getElementById('signals').innerHTML = '<div class="signals">' + signals.map(s => {
+        const isL = s.direction === 'long';
+        const rr = Math.abs(s.take_profit - s.entry_price) / Math.abs(s.entry_price - s.stop_loss);
+        const dims = (s.dimensions||[]).map(d=>DIM_LABELS[d]||d).join(' + ');
+        const filters = Object.entries(s.filter_details||{}).map(([k,v]) =>
+          `<span class="${v.passed?'filter-pass':'filter-fail'}">${DIM_LABELS[k]||k}: ${v.passed?'✓':'✗'+(v.reason?' '+v.reason:'')}</span>`
+        ).join(' ');
+        return `<div class="signal ${s.direction}"><div class="signal-header"><span class="signal-dir ${s.direction}">${isL?'LONG':'SHORT'}</span><span class="signal-sym">${s.base}/USDT</span><span class="signal-meta">${s.timeframe} | ${s.strategy}</span></div><div class="signal-prices"><div><div class="label">Entry</div><div class="val">${fmtPrice(s.entry_price)}</div></div><div><div class="label">Stop Loss</div><div class="val sl">${fmtPrice(s.stop_loss)}</div></div><div><div class="label">Take Profit</div><div class="val tp">${fmtPrice(s.take_profit)}</div></div><div><div class="label">R:R</div><div class="val">${rr.toFixed(1)}:1</div></div></div><div class="signal-filters">${dims} | ${filters}</div><div class="signal-meta" style="margin-top:4px">${fmtTime(s.created_at)}${s.emailed?' | Email sent':''}</div></div>`;
+      }).join('') + '</div>';
+    } else {
+      document.getElementById('signals').innerHTML = '<div class="empty">No signals detected yet. Scanner runs every 15 minutes.</div>';
+    }
+
+    document.getElementById('refresh').textContent = `Last: ${new Date().toLocaleTimeString('zh-CN')}`;
+  } catch(e) {
+    document.getElementById('refresh').textContent = 'Error loading data';
+    console.error(e);
+  }
+}
+
+// Auto-refresh every 60s
+if (SB_URL && SB_KEY) { loadData(); setInterval(loadData, 60000); }
+else { document.getElementById('signals').innerHTML = '<div class="empty">Configure Supabase URL and Key in the dashboard settings.</div>'; document.getElementById('refresh').textContent = 'Not configured'; }
+</script>
+</body>
+</html>
