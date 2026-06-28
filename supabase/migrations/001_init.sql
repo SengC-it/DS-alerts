@@ -5,7 +5,7 @@
 -- ==================== 第 1 步：建表 ====================
 
 -- 信号记录表
-CREATE TABLE IF NOT EXISTS signals (
+CREATE TABLE IF NOT EXISTS ds_signals (
   id BIGSERIAL PRIMARY KEY,
   symbol TEXT NOT NULL,
   base TEXT NOT NULL,
@@ -23,11 +23,11 @@ CREATE TABLE IF NOT EXISTS signals (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_signals_symbol_dir_created ON signals (symbol, direction, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_signals_created_at ON signals (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ds_signals_symbol_dir_created ON ds_signals (symbol, direction, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ds_signals_created_at ON ds_signals (created_at DESC);
 
 -- 扫描日志表
-CREATE TABLE IF NOT EXISTS scan_logs (
+CREATE TABLE IF NOT EXISTS ds_scan_logs (
   id BIGSERIAL PRIMARY KEY,
   started_at TIMESTAMPTZ NOT NULL,
   finished_at TIMESTAMPTZ,
@@ -37,18 +37,18 @@ CREATE TABLE IF NOT EXISTS scan_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_scan_logs_created_at ON scan_logs (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ds_scan_logs_created_at ON ds_scan_logs (created_at DESC);
 
 -- RLS 策略
-ALTER TABLE signals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE scan_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ds_signals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ds_scan_logs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow anonymous read on signals" ON signals FOR SELECT TO anon USING (true);
-CREATE POLICY "Allow anonymous insert on signals" ON signals FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "Allow service_role full access on signals" ON signals FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Allow anonymous read on ds_signals" ON ds_signals FOR SELECT TO anon USING (true);
+CREATE POLICY "Allow anonymous insert on ds_signals" ON ds_signals FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Allow service_role full access on ds_signals" ON ds_signals FOR ALL TO service_role USING (true) WITH CHECK (true);
 
-CREATE POLICY "Allow anonymous read on scan_logs" ON scan_logs FOR SELECT TO anon USING (true);
-CREATE POLICY "Allow anonymous insert on scan_logs" ON scan_logs FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "Allow service_role full access on scan_logs" ON scan_logs FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Allow anonymous read on ds_scan_logs" ON ds_scan_logs FOR SELECT TO anon USING (true);
+CREATE POLICY "Allow anonymous insert on ds_scan_logs" ON ds_scan_logs FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Allow service_role full access on ds_scan_logs" ON ds_scan_logs FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 

@@ -124,8 +124,8 @@ async function loadData() {
     const headers = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` };
     
     const [signals, logs] = await Promise.all([
-      fetch(`${SB_URL}/rest/v1/signals?select=*&order=created_at.desc&limit=50`, { headers }).then(r => r.json()),
-      fetch(`${SB_URL}/rest/v1/scan_logs?select=*&order=created_at.desc&limit=5`, { headers }).then(r => r.json()),
+      fetch(`${SB_URL}/rest/v1/ds_signals?select=*&order=created_at.desc&limit=50`, { headers }).then(r => r.json()),
+      fetch(`${SB_URL}/rest/v1/ds_scan_logs?select=*&order=created_at.desc&limit=5`, { headers }).then(r => r.json()),
     ]);
 
     // Render logs

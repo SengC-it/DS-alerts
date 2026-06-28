@@ -355,7 +355,7 @@ async function sbSelect(table, filter, limit = 1) {
 async function isInCooldown(instId, direction, timeframe) {
   const ms = timeframe === '4h' ? 8 * 3600000 : 4 * 3600000;
   const cutoff = new Date(Date.now() - ms).toISOString();
-  const data = await sbSelect('signals', `symbol=eq.${instId}&direction=eq.${direction}&created_at=gte.${cutoff}`, 1);
+  const data = await sbSelect('ds_signals', `symbol=eq.${instId}&direction=eq.${direction}&created_at=gte.${cutoff}`, 1);
   return data.length > 0;
 }
 
@@ -483,7 +483,7 @@ async function main() {
       if (!cooled) { console.log(`[Scanner] ${cfg.base}/${cfg.timeframe} ${signal.direction} cooldown`); scanned++; continue; }
 
       // 3e. 保存信号到 Supabase
-      await sbInsert('signals', {
+      await sbInsert('ds_signals', {
         symbol: cfg.instId, base: cfg.base, timeframe: cfg.timeframe,
         strategy: cfg.strategy, dimensions: cfg.dimensions,
         direction: signal.direction, entry_price: signal.entry,
@@ -513,7 +513,7 @@ async function main() {
   }
 
   // 5. 保存扫描日志
-  await sbInsert('scan_logs', {
+  await sbInsert('ds_scan_logs', {
     started_at: new Date().toISOString(), finished_at: new Date().toISOString(),
     coins_scanned: scanned, signals_found: detected.length,
     errors: errors > 0 ? `${errors} errors` : null,
