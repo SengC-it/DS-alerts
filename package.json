@@ -8,5 +8,8 @@
   },
   "dependencies": {
     "nodemailer": "^6.9.16"
+  },
+  "devDependencies": {
+    "https-proxy-agent": "^9.1.0"
   }
 }
