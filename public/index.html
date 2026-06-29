@@ -75,15 +75,29 @@ h2 { font-size:16px; color:#9ca3af; margin:20px 0 10px; font-weight:600; }
 <script>
 // Config (from ablation study, same as scanner)
 const COINS = [
-  {base:"UB",tf:"4h",strat:"rsi_trend",dims:["OI","btc_trend","volatility"],pf:5.11,wr:54.8},
-  {base:"H",tf:"4h",strat:"breakout",dims:["funding"],pf:2.58,wr:57.4},
-  {base:"BASED",tf:"1h",strat:"rsi_trend",dims:["btc_trend"],pf:5.29,wr:66.7},
-  {base:"BASED",tf:"1h",strat:"breakout",dims:["volatility","mtf"],pf:3.56,wr:61.8},
-  {base:"BEAT",tf:"1h",strat:"rsi_trend",dims:["mtf"],pf:3.25,wr:61.0},
-  {base:"FARTCOIN",tf:"4h",strat:"bollinger_breakout",dims:["volatility"],pf:2.58,wr:56.8},
-  {base:"GRASS",tf:"4h",strat:"rsi_trend",dims:["btc_trend"],pf:2.79,wr:56.3},
-  {base:"IP",tf:"4h",strat:"breakout",dims:["volatility"],pf:2.62,wr:54.1},
-  {base:"MMT",tf:"1h",strat:"rsi_trend",dims:["mtf"],pf:4.32,wr:66.7},
+  {base:"BTC",tf:"4h",strat:"volume_breakout",dims:[],pf:2.11,wr:55.6},
+  {base:"ETH",tf:"1h",strat:"rsi_divergence",dims:[],pf:2.16,wr:62.5},
+  {base:"ETH",tf:"4h",strat:"volume_breakout",dims:[],pf:2.14,wr:58.3},
+  {base:"SOL",tf:"1h",strat:"rsi_divergence",dims:[],pf:2.99,wr:58.3},
+  {base:"SOL",tf:"4h",strat:"trend_pullback",dims:[],pf:1.91,wr:54.8},
+  {base:"AVAX",tf:"4h",strat:"trend_pullback",dims:[],pf:3.02,wr:57.1},
+  {base:"LINK",tf:"4h",strat:"trend_pullback",dims:[],pf:2.12,wr:53.2},
+  {base:"XRP",tf:"4h",strat:"trend_pullback",dims:[],pf:2.10,wr:58.8},
+  {base:"DOGE",tf:"4h",strat:"trend_pullback",dims:[],pf:2.04,wr:55.1},
+  {base:"ADA",tf:"1h",strat:"trend_pullback",dims:[],pf:2.62,wr:59.3},
+  {base:"ADA",tf:"4h",strat:"trend_pullback",dims:[],pf:2.41,wr:60.6},
+  {base:"PEPE",tf:"4h",strat:"trend_pullback",dims:[],pf:2.40,wr:58.5},
+  {base:"BNB",tf:"4h",strat:"bollinger_reversion",dims:[],pf:1.98,wr:50.0},
+  {base:"SUI",tf:"1h",strat:"bollinger_reversion",dims:[],pf:2.50,wr:57.1},
+  {base:"UB",tf:"1h",strat:"rsi_divergence",dims:[],pf:4.35,wr:67.9},
+  {base:"UB",tf:"4h",strat:"rsi_divergence",dims:[],pf:3.78,wr:60.0},
+  {base:"BASED",tf:"1h",strat:"rsi_divergence",dims:[],pf:9.01,wr:77.8},
+  {base:"BEAT",tf:"4h",strat:"volume_breakout",dims:[],pf:4.01,wr:75.0},
+  {base:"FARTCOIN",tf:"1h",strat:"rsi_divergence",dims:[],pf:2.72,wr:61.5},
+  {base:"FARTCOIN",tf:"4h",strat:"volume_breakout",dims:[],pf:1.60,wr:50.0},
+  {base:"GRASS",tf:"1h",strat:"bollinger_reversion",dims:[],pf:4.52,wr:71.4},
+  {base:"GRASS",tf:"4h",strat:"volume_breakout",dims:[],pf:1.72,wr:63.6},
+  {base:"IP",tf:"1h",strat:"rsi_divergence",dims:[],pf:6.23,wr:75.0},
 ];
 
 const DIM_LABELS = {volume:"Volume",OI:"OI",funding:"Funding",btc_trend:"BTC Trend",volatility:"Volatility",mtf:"MTF"};

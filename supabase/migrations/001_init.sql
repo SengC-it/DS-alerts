@@ -20,6 +20,14 @@ CREATE TABLE IF NOT EXISTS ds_signals (
   filter_details JSONB NOT NULL DEFAULT '{}',
   signal_time TIMESTAMPTZ NOT NULL,
   emailed BOOLEAN NOT NULL DEFAULT false,
+  -- 实盘验证字段 (手动或后续自动更新)
+  actual_entry DOUBLE PRECISION,        -- 实际入场价
+  actual_sl DOUBLE PRECISION,           -- 实际止损成交价
+  actual_tp DOUBLE PRECISION,           -- 实际止盈成交价
+  actual_pnl DOUBLE PRECISION,          -- 实际盈亏(含手续费)
+  actual_exit_time TIMESTAMPTZ,         -- 实际出场时间
+  trade_result TEXT CHECK (trade_result IS NULL OR trade_result IN ('hit_sl', 'hit_tp', 'manual_close', 'skipped')),
+  notes TEXT,                           --手动备注
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

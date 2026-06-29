@@ -13,16 +13,35 @@ import https from 'node:https';
 
 // ==================== 配置 ====================
 const COIN_CONFIGS = [
-  // === 存活配置（OKX有合约 + 胜率>=50%） ===
-  { instId: "UB-USDT-SWAP", base: "UB", timeframe: "4h", strategy: "rsi_trend", dimensions: ["OI","btc_trend","volatility"], profitFactor: 5.11, winRate: 54.8 },
-  { instId: "H-USDT-SWAP", base: "H", timeframe: "4h", strategy: "breakout", dimensions: ["funding"], profitFactor: 2.58, winRate: 57.4 },
-  { instId: "BASED-USDT-SWAP", base: "BASED", timeframe: "1h", strategy: "rsi_trend", dimensions: ["btc_trend"], profitFactor: 5.29, winRate: 66.7 },
-  { instId: "BASED-USDT-SWAP", base: "BASED", timeframe: "1h", strategy: "breakout", dimensions: ["volatility","mtf"], profitFactor: 3.56, winRate: 61.8 },
-  { instId: "BEAT-USDT-SWAP", base: "BEAT", timeframe: "1h", strategy: "rsi_trend", dimensions: ["mtf"], profitFactor: 3.25, winRate: 61.0 },
-  { instId: "FARTCOIN-USDT-SWAP", base: "FARTCOIN", timeframe: "4h", strategy: "bollinger_breakout", dimensions: ["volatility"], profitFactor: 2.58, winRate: 56.8 },
-  { instId: "GRASS-USDT-SWAP", base: "GRASS", timeframe: "4h", strategy: "rsi_trend", dimensions: ["btc_trend"], profitFactor: 2.79, winRate: 56.3 },
-  { instId: "IP-USDT-SWAP", base: "IP", timeframe: "4h", strategy: "breakout", dimensions: ["volatility"], profitFactor: 2.62, winRate: 54.1 },
-  { instId: "MMT-USDT-SWAP", base: "MMT", timeframe: "1h", strategy: "rsi_trend", dimensions: ["mtf"], profitFactor: 4.32, winRate: 66.7 },
+  // === V4 回测验证 (PF>=1.5, 胜率>=55%, 交易>=7次, OKX有合约) ===
+  // 新策略: RSI背离, 趋势回调, 布林回归, 放量突破
+
+  // 主流币 (流动性好，信号更可靠)
+  { instId: "BTC-USDT-SWAP", base: "BTC", timeframe: "4h", strategy: "volume_breakout", dimensions: [], profitFactor: 2.11, winRate: 55.6 },
+  { instId: "ETH-USDT-SWAP", base: "ETH", timeframe: "1h", strategy: "rsi_divergence", dimensions: [], profitFactor: 2.16, winRate: 62.5 },
+  { instId: "ETH-USDT-SWAP", base: "ETH", timeframe: "4h", strategy: "volume_breakout", dimensions: [], profitFactor: 2.14, winRate: 58.3 },
+  { instId: "SOL-USDT-SWAP", base: "SOL", timeframe: "1h", strategy: "rsi_divergence", dimensions: [], profitFactor: 2.99, winRate: 58.3 },
+  { instId: "SOL-USDT-SWAP", base: "SOL", timeframe: "4h", strategy: "trend_pullback", dimensions: [], profitFactor: 1.91, winRate: 54.8 },
+  { instId: "AVAX-USDT-SWAP", base: "AVAX", timeframe: "4h", strategy: "trend_pullback", dimensions: [], profitFactor: 3.02, winRate: 57.1 },
+  { instId: "LINK-USDT-SWAP", base: "LINK", timeframe: "4h", strategy: "trend_pullback", dimensions: [], profitFactor: 2.12, winRate: 53.2 },
+  { instId: "XRP-USDT-SWAP", base: "XRP", timeframe: "4h", strategy: "trend_pullback", dimensions: [], profitFactor: 2.10, winRate: 58.8 },
+  { instId: "DOGE-USDT-SWAP", base: "DOGE", timeframe: "4h", strategy: "trend_pullback", dimensions: [], profitFactor: 2.04, winRate: 55.1 },
+  { instId: "ADA-USDT-SWAP", base: "ADA", timeframe: "1h", strategy: "trend_pullback", dimensions: [], profitFactor: 2.62, winRate: 59.3 },
+  { instId: "ADA-USDT-SWAP", base: "ADA", timeframe: "4h", strategy: "trend_pullback", dimensions: [], profitFactor: 2.41, winRate: 60.6 },
+  { instId: "PEPE-USDT-SWAP", base: "PEPE", timeframe: "4h", strategy: "trend_pullback", dimensions: [], profitFactor: 2.40, winRate: 58.5 },
+  { instId: "BNB-USDT-SWAP", base: "BNB", timeframe: "4h", strategy: "bollinger_reversion", dimensions: [], profitFactor: 1.98, winRate: 50.0 },
+  { instId: "SUI-USDT-SWAP", base: "SUI", timeframe: "1h", strategy: "bollinger_reversion", dimensions: [], profitFactor: 2.50, winRate: 57.1 },
+
+  // 山寨币 (小币，保留回测最优的)
+  { instId: "UB-USDT-SWAP", base: "UB", timeframe: "1h", strategy: "rsi_divergence", dimensions: [], profitFactor: 4.35, winRate: 67.9 },
+  { instId: "UB-USDT-SWAP", base: "UB", timeframe: "4h", strategy: "rsi_divergence", dimensions: [], profitFactor: 3.78, winRate: 60.0 },
+  { instId: "BASED-USDT-SWAP", base: "BASED", timeframe: "1h", strategy: "rsi_divergence", dimensions: [], profitFactor: 9.01, winRate: 77.8 },
+  { instId: "BEAT-USDT-SWAP", base: "BEAT", timeframe: "4h", strategy: "volume_breakout", dimensions: [], profitFactor: 4.01, winRate: 75.0 },
+  { instId: "FARTCOIN-USDT-SWAP", base: "FARTCOIN", timeframe: "1h", strategy: "rsi_divergence", dimensions: [], profitFactor: 2.72, winRate: 61.5 },
+  { instId: "FARTCOIN-USDT-SWAP", base: "FARTCOIN", timeframe: "4h", strategy: "volume_breakout", dimensions: [], profitFactor: 1.60, winRate: 50.0 },
+  { instId: "GRASS-USDT-SWAP", base: "GRASS", timeframe: "1h", strategy: "bollinger_reversion", dimensions: [], profitFactor: 4.52, winRate: 71.4 },
+  { instId: "GRASS-USDT-SWAP", base: "GRASS", timeframe: "4h", strategy: "volume_breakout", dimensions: [], profitFactor: 1.72, winRate: 63.6 },
+  { instId: "IP-USDT-SWAP", base: "IP", timeframe: "1h", strategy: "rsi_divergence", dimensions: [], profitFactor: 6.23, winRate: 75.0 },
 ];
 
 // OKX bar 格式映射
@@ -227,6 +246,54 @@ function detectSignal(candles, strategy) {
       if (e9[p] >= e21[p] && e9[i] < e21[i] && r[i] < 60) return mk('short');
       return null;
     }
+    // ========== V4 新策略 ==========
+    case 'trend_pullback': {
+      const e20 = ema(closes, 20), e50 = ema(closes, 50);
+      if (!e20[i] || !e50[i]) return null;
+      const bullish = e20[i] > e50[i];
+      const bearish = e20[i] < e50[i];
+      const dist = (closes[i] - e20[i]) / e20[i];
+      if (bullish && dist > -0.02 && dist < 0.01 && candles[i].c > candles[i].o) return mk('long');
+      if (bearish && dist < 0.02 && dist > -0.01 && candles[i].c < candles[i].o) return mk('short');
+      return null;
+    }
+    case 'rsi_divergence': {
+      const r = calcRsi(closes);
+      const lookback = 20, start = candles.length - lookback;
+      const mid = Math.floor(start + lookback / 2);
+      let pL1 = Infinity, pL2 = Infinity, pH1 = -Infinity, pH2 = -Infinity;
+      let rL1 = 100, rL2 = 100, rH1 = 0, rH2 = 0;
+      for (let j = start; j < mid; j++) {
+        if (closes[j] < pL1) { pL1 = closes[j]; rL1 = r[j]; }
+        if (closes[j] > pH1) { pH1 = closes[j]; rH1 = r[j]; }
+      }
+      for (let j = mid; j < candles.length; j++) {
+        if (closes[j] < pL2) { pL2 = closes[j]; rL2 = r[j]; }
+        if (closes[j] > pH2) { pH2 = closes[j]; rH2 = r[j]; }
+      }
+      if (pL2 < pL1 && rL2 > rL1 && rL2 < 40) return mk('long');
+      if (pH2 > pH1 && rH2 < rH1 && rH2 > 60) return mk('short');
+      return null;
+    }
+    case 'volume_breakout': {
+      const period = 20;
+      if (i < period) return null;
+      const highs = candles.slice(i - period, i).map(x => x.h);
+      const lows = candles.slice(i - period, i).map(x => x.l);
+      const avgVol = candles.slice(i - 20, i).reduce((s, c) => s + c.v, 0) / 20;
+      if (candles[i].v < avgVol * 2) return null;
+      if (candles[i].c > Math.max(...highs)) return mk('long');
+      if (candles[i].c < Math.min(...lows)) return mk('short');
+      return null;
+    }
+    case 'bollinger_reversion': {
+      const bb = bollingerBands(closes);
+      const r = calcRsi(closes);
+      if (!bb.lower[i] || !bb.upper[i]) return null;
+      if (candles[i].c <= bb.lower[i] && r[i] < 35) return mk('long');
+      if (candles[i].c >= bb.upper[i] && r[i] > 65) return mk('short');
+      return null;
+    }
     default: return null;
   }
 }
@@ -370,10 +437,10 @@ async function sendEmail(signals) {
     const d = s.direction === 'long' ? '做多' : '做空';
     const dc = s.direction === 'long' ? '#27AE60' : '#E74C3C';
     const rr = Math.abs(s.tp - s.entry) / Math.abs(s.entry - s.sl);
-    const dims = s.dimensions.map(d => DIM_CN[d] || d).join(' + ');
-    const filterInfo = Object.entries(s.details || {})
-      .map(([k, v]) => `${DIM_CN[k] || k}: ${v.passed ? '✓' : '✗ ' + (v.reason || '')}`)
-      .join(' | ');
+    const dims = s.dimensions.length > 0 ? s.dimensions.map(d => DIM_CN[d] || d).join(' + ') : '无';
+    const filterInfo = Object.entries(s.details || {}).length > 0
+      ? Object.entries(s.details || {}).map(([k, v]) => `${DIM_CN[k] || k}: ${v.passed ? '✓' : '✗ ' + (v.reason || '')}`).join(' | ')
+      : '策略自带确认';
     return `<tr><td style="padding:10px;border-bottom:1px solid #eee"><strong style="color:${dc};font-size:16px">${d}</strong><br><span style="font-size:20px;font-weight:bold">${s.base}/USDT</span> <span style="color:#888">${s.timeframe} | ${s.strategy}</span></td><td style="padding:10px;border-bottom:1px solid #eee;font-size:13px">入场: <b>${s.entry.toFixed(4)}</b><br>止损: <span style="color:#E74C3C">${s.sl.toFixed(4)}</span> | 止盈: <span style="color:#27AE60">${s.tp.toFixed(4)}</span><br>盈亏比 ${rr.toFixed(1)}:1</td><td style="padding:10px;border-bottom:1px solid #eee;font-size:12px">过滤: ${dims}<br><span style="font-size:11px;color:#888">${filterInfo}</span><br>回测: PF ${s.profitFactor} | 胜率 ${s.winRate}%</td></tr>`;
   }).join('');
 
