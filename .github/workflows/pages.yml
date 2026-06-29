@@ -20,8 +20,8 @@ jobs:
 
       - name: Inject Supabase config
         run: |
-          sed -i "s|document.currentScript?.dataset?.sbUrl || ''|document.currentScript?.dataset?.sbUrl || '${{ secrets.SUPABASE_URL }}'|g" public/index.html
-          sed -i "s|document.currentScript?.dataset?.sbKey || ''|document.currentScript?.dataset?.sbKey || '${{ secrets.SUPABASE_ANON_KEY }}'|g" public/index.html
+          sed -i "s#document.currentScript?.dataset?.sbUrl || ''#document.currentScript?.dataset?.sbUrl || '${{ secrets.SUPABASE_URL }}'#g" public/index.html
+          sed -i "s#document.currentScript?.dataset?.sbKey || ''#document.currentScript?.dataset?.sbKey || '${{ secrets.SUPABASE_ANON_KEY }}'#g" public/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
