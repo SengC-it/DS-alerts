@@ -13,28 +13,16 @@ import https from 'node:https';
 
 // ==================== 配置 ====================
 const COIN_CONFIGS = [
+  // === 存活配置（OKX有合约 + 胜率>=50%） ===
   { instId: "UB-USDT-SWAP", base: "UB", timeframe: "4h", strategy: "rsi_trend", dimensions: ["OI","btc_trend","volatility"], profitFactor: 5.11, winRate: 54.8 },
-  { instId: "LAB-USDT-SWAP", base: "LAB", timeframe: "4h", strategy: "rsi_trend", dimensions: ["btc_trend"], profitFactor: 2.62, winRate: 48.7 },
-  { instId: "MYX-USDT-SWAP", base: "MYX", timeframe: "4h", strategy: "breakout", dimensions: ["OI","btc_trend"], profitFactor: 2.96, winRate: 54.3 },
   { instId: "H-USDT-SWAP", base: "H", timeframe: "4h", strategy: "breakout", dimensions: ["funding"], profitFactor: 2.58, winRate: 57.4 },
   { instId: "BASED-USDT-SWAP", base: "BASED", timeframe: "1h", strategy: "rsi_trend", dimensions: ["btc_trend"], profitFactor: 5.29, winRate: 66.7 },
-  { instId: "DEXE-USDT-SWAP", base: "DEXE", timeframe: "4h", strategy: "bollinger_breakout", dimensions: ["OI"], profitFactor: 2.82, winRate: 60.4 },
-  { instId: "BEAT-USDT-SWAP", base: "BEAT", timeframe: "4h", strategy: "breakout", dimensions: ["volume","funding"], profitFactor: 2.34, winRate: 45.5 },
-  { instId: "GUA-USDT-SWAP", base: "GUA", timeframe: "4h", strategy: "rsi_trend", dimensions: ["OI","btc_trend"], profitFactor: 2.15, winRate: 45.5 },
-  { instId: "GUA-USDT-SWAP", base: "GUA", timeframe: "4h", strategy: "ema_trend", dimensions: ["btc_trend","volatility"], profitFactor: 3.30, winRate: 60.0 },
+  { instId: "BASED-USDT-SWAP", base: "BASED", timeframe: "1h", strategy: "breakout", dimensions: ["volatility","mtf"], profitFactor: 3.56, winRate: 61.8 },
   { instId: "BEAT-USDT-SWAP", base: "BEAT", timeframe: "1h", strategy: "rsi_trend", dimensions: ["mtf"], profitFactor: 3.25, winRate: 61.0 },
   { instId: "FARTCOIN-USDT-SWAP", base: "FARTCOIN", timeframe: "4h", strategy: "bollinger_breakout", dimensions: ["volatility"], profitFactor: 2.58, winRate: 56.8 },
-  { instId: "BASED-USDT-SWAP", base: "BASED", timeframe: "1h", strategy: "breakout", dimensions: ["volatility","mtf"], profitFactor: 3.56, winRate: 61.8 },
-  { instId: "LAB-USDT-SWAP", base: "LAB", timeframe: "1h", strategy: "rsi_trend", dimensions: ["btc_trend"], profitFactor: 2.88, winRate: 55.7 },
-  { instId: "AIN-USDT-SWAP", base: "AIN", timeframe: "4h", strategy: "ema_cross", dimensions: ["OI"], profitFactor: 2.10, winRate: 48.7 },
   { instId: "GRASS-USDT-SWAP", base: "GRASS", timeframe: "4h", strategy: "rsi_trend", dimensions: ["btc_trend"], profitFactor: 2.79, winRate: 56.3 },
-  { instId: "CLO-USDT-SWAP", base: "CLO", timeframe: "1h", strategy: "rsi_trend", dimensions: ["mtf"], profitFactor: 2.46, winRate: 50.0 },
   { instId: "IP-USDT-SWAP", base: "IP", timeframe: "4h", strategy: "breakout", dimensions: ["volatility"], profitFactor: 2.62, winRate: 54.1 },
-  { instId: "BAS-USDT-SWAP", base: "BAS", timeframe: "4h", strategy: "breakout", dimensions: ["volume"], profitFactor: 1.86, winRate: 53.1 },
   { instId: "MMT-USDT-SWAP", base: "MMT", timeframe: "1h", strategy: "rsi_trend", dimensions: ["mtf"], profitFactor: 4.32, winRate: 66.7 },
-  { instId: "MYX-USDT-SWAP", base: "MYX", timeframe: "4h", strategy: "ema_cross", dimensions: ["volatility"], profitFactor: 2.96, winRate: 55.0 },
-  { instId: "SIREN-USDT-SWAP", base: "SIREN", timeframe: "4h", strategy: "bollinger_breakout", dimensions: ["funding"], profitFactor: 1.41, winRate: 37.8 },
-  { instId: "STG-USDT-SWAP", base: "STG", timeframe: "4h", strategy: "breakout", dimensions: ["OI"], profitFactor: 1.68, winRate: 45.6 },
 ];
 
 // OKX bar 格式映射
@@ -178,8 +166,8 @@ function detectSignal(candles, strategy) {
 
   const mk = (dir) => ({
     direction: dir, entry: closes[i], atr: atrVal,
-    sl: dir === 'long' ? closes[i] - 1.5 * atrVal : closes[i] + 1.5 * atrVal,
-    tp: dir === 'long' ? closes[i] + 3 * atrVal : closes[i] - 3 * atrVal,
+    sl: dir === 'long' ? closes[i] - 2 * atrVal : closes[i] + 2 * atrVal,
+    tp: dir === 'long' ? closes[i] + 4 * atrVal : closes[i] - 4 * atrVal,
   });
 
   switch (strategy) {
@@ -282,14 +270,17 @@ function applyFilters(dimensions, direction, strategy, candles, btcCandles4h, fu
     }
 
     if (dim === 'btc_trend') {
+      // BTC趋势对山寨币是增幅器，不是硬过滤
+      // BTC看多时做多信号加分，做空信号减分；反之亦然
+      // 但不完全阻挡——山寨币可能与BTC脱钩
       if (btcCandles4h.length >= 50) {
         const btcCloses = btcCandles4h.map(c => c.c);
         const e50 = ema(btcCloses, 50);
         const lastEma = e50[e50.length - 1];
         if (lastEma > 0) {
           const bullish = btcCloses[btcCloses.length - 1] > lastEma;
-          if (bullish && direction === 'short') result = { passed: false, reason: 'BTC bullish, skip short' };
-          if (!bullish && direction === 'long') result = { passed: false, reason: 'BTC bearish, skip long' };
+          if (bullish && direction === 'short') result = { passed: true, reason: 'BTC看多,做空信号减弱(非硬过滤)' };
+          if (!bullish && direction === 'long') result = { passed: true, reason: 'BTC看空,做多信号减弱(非硬过滤)' };
         }
       }
     }
@@ -309,14 +300,15 @@ function applyFilters(dimensions, direction, strategy, candles, btcCandles4h, fu
     }
 
     if (dim === 'mtf') {
+      // 同 btc_trend，改为增幅器
       if (btcCandles4h.length >= 50) {
         const btcCloses = btcCandles4h.map(c => c.c);
         const e50 = ema(btcCloses, 50);
         const lastEma = e50[e50.length - 1];
         if (lastEma > 0) {
           const bullish = btcCloses[btcCloses.length - 1] > lastEma;
-          if (bullish && direction === 'short') result = { passed: false, reason: 'MTF: BTC bullish, skip short' };
-          if (!bullish && direction === 'long') result = { passed: false, reason: 'MTF: BTC bearish, skip long' };
+          if (bullish && direction === 'short') result = { passed: true, reason: 'MTF: BTC看多,做空信号减弱(非硬过滤)' };
+          if (!bullish && direction === 'long') result = { passed: true, reason: 'MTF: BTC看空,做多信号减弱(非硬过滤)' };
         }
       }
     }

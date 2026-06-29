@@ -76,27 +76,14 @@ h2 { font-size:16px; color:#9ca3af; margin:20px 0 10px; font-weight:600; }
 // Config (from ablation study, same as scanner)
 const COINS = [
   {base:"UB",tf:"4h",strat:"rsi_trend",dims:["OI","btc_trend","volatility"],pf:5.11,wr:54.8},
-  {base:"LAB",tf:"4h",strat:"rsi_trend",dims:["btc_trend"],pf:2.62,wr:48.7},
-  {base:"MYX",tf:"4h",strat:"breakout",dims:["OI","btc_trend"],pf:2.96,wr:54.3},
   {base:"H",tf:"4h",strat:"breakout",dims:["funding"],pf:2.58,wr:57.4},
   {base:"BASED",tf:"1h",strat:"rsi_trend",dims:["btc_trend"],pf:5.29,wr:66.7},
-  {base:"DEXE",tf:"4h",strat:"bollinger_breakout",dims:["OI"],pf:2.82,wr:60.4},
-  {base:"BEAT",tf:"4h",strat:"breakout",dims:["volume","funding"],pf:2.34,wr:45.5},
-  {base:"GUA",tf:"4h",strat:"rsi_trend",dims:["OI","btc_trend"],pf:2.15,wr:45.5},
-  {base:"GUA",tf:"4h",strat:"ema_trend",dims:["btc_trend","volatility"],pf:3.30,wr:60.0},
+  {base:"BASED",tf:"1h",strat:"breakout",dims:["volatility","mtf"],pf:3.56,wr:61.8},
   {base:"BEAT",tf:"1h",strat:"rsi_trend",dims:["mtf"],pf:3.25,wr:61.0},
   {base:"FARTCOIN",tf:"4h",strat:"bollinger_breakout",dims:["volatility"],pf:2.58,wr:56.8},
-  {base:"BASED",tf:"1h",strat:"breakout",dims:["volatility","mtf"],pf:3.56,wr:61.8},
-  {base:"LAB",tf:"1h",strat:"rsi_trend",dims:["btc_trend"],pf:2.88,wr:55.7},
-  {base:"AIN",tf:"4h",strat:"ema_cross",dims:["OI"],pf:2.10,wr:48.7},
   {base:"GRASS",tf:"4h",strat:"rsi_trend",dims:["btc_trend"],pf:2.79,wr:56.3},
-  {base:"CLO",tf:"1h",strat:"rsi_trend",dims:["mtf"],pf:2.46,wr:50.0},
   {base:"IP",tf:"4h",strat:"breakout",dims:["volatility"],pf:2.62,wr:54.1},
-  {base:"BAS",tf:"4h",strat:"breakout",dims:["volume"],pf:1.86,wr:53.1},
   {base:"MMT",tf:"1h",strat:"rsi_trend",dims:["mtf"],pf:4.32,wr:66.7},
-  {base:"MYX",tf:"4h",strat:"ema_cross",dims:["volatility"],pf:2.96,wr:55.0},
-  {base:"SIREN",tf:"4h",strat:"bollinger_breakout",dims:["funding"],pf:1.41,wr:37.8},
-  {base:"STG",tf:"4h",strat:"breakout",dims:["OI"],pf:1.68,wr:45.6},
 ];
 
 const DIM_LABELS = {volume:"Volume",OI:"OI",funding:"Funding",btc_trend:"BTC Trend",volatility:"Volatility",mtf:"MTF"};
