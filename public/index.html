@@ -101,6 +101,18 @@ const COINS = [
 ];
 
 const DIM_LABELS = {volume:"Volume",OI:"OI",funding:"Funding",btc_trend:"BTC Trend",volatility:"Volatility",mtf:"MTF"};
+const MAJOR_BASES = new Set(["BTC","ETH","SOL","AVAX","LINK","XRP","DOGE","ADA","BNB","SUI"]);
+function defaultDims(c) {
+  const map = {
+    trend_pullback: ["Volatility","BTC Trend","Funding"],
+    rsi_divergence: ["Volatility","BTC Trend","Funding"],
+    volume_breakout: ["Volume","Volatility","BTC Trend","Funding"],
+    bollinger_reversion: ["Volatility","Funding"],
+  };
+  const dims = [...(map[c.strat] || ["Volatility","Funding"])];
+  if (!MAJOR_BASES.has(c.base)) dims.push("OI");
+  return dims;
+}
 
 function fmtTime(iso) {
   const d = new Date(iso);
@@ -110,7 +122,7 @@ function fmtPrice(p) { return p>=1000?p.toFixed(2):p>=1?p.toFixed(4):p.toFixed(6
 
 // Render coins
 document.getElementById('coins').innerHTML = COINS.map(c =>
-  `<div class="coin"><div><span class="coin-name">${c.base}</span><span class="coin-tf">${c.tf}</span></div><div class="coin-strat">${c.strat} | ${c.dims.map(d=>DIM_LABELS[d]||d).join('+')}</div><div class="coin-stats">PF ${c.pf} | WR ${c.wr}%</div></div>`
+  `<div class="coin"><div><span class="coin-name">${c.base}</span><span class="coin-tf">${c.tf}</span></div><div class="coin-strat">${c.strat} | ${(c.dims.length ? c.dims.map(d=>DIM_LABELS[d]||d) : defaultDims(c)).join('+')}</div><div class="coin-stats">PF ${c.pf} | WR ${c.wr}%</div></div>`
 ).join('');
 
 // Supabase
@@ -140,10 +152,12 @@ async function loadData() {
         const isL = s.direction === 'long';
         const rr = Math.abs(s.take_profit - s.entry_price) / Math.abs(s.entry_price - s.stop_loss);
         const dims = (s.dimensions||[]).map(d=>DIM_LABELS[d]||d).join(' + ');
+        const quality = `Score ${s.signal_score ?? '-'} | Net R ${s.net_risk_reward ?? rr.toFixed(1)} | Cost ${s.estimated_cost_pct != null ? (s.estimated_cost_pct*100).toFixed(3)+'%' : '-'}`;
+        const result = s.trade_result ? ` | Result ${s.trade_result}${s.actual_pnl_r != null ? ' ' + s.actual_pnl_r + 'R' : ''}` : '';
         const filters = Object.entries(s.filter_details||{}).map(([k,v]) =>
           `<span class="${v.passed?'filter-pass':'filter-fail'}">${DIM_LABELS[k]||k}: ${v.passed?'✓':'✗'+(v.reason?' '+v.reason:'')}</span>`
         ).join(' ');
-        return `<div class="signal ${s.direction}"><div class="signal-header"><span class="signal-dir ${s.direction}">${isL?'LONG':'SHORT'}</span><span class="signal-sym">${s.base}/USDT</span><span class="signal-meta">${s.timeframe} | ${s.strategy}</span></div><div class="signal-prices"><div><div class="label">Entry</div><div class="val">${fmtPrice(s.entry_price)}</div></div><div><div class="label">Stop Loss</div><div class="val sl">${fmtPrice(s.stop_loss)}</div></div><div><div class="label">Take Profit</div><div class="val tp">${fmtPrice(s.take_profit)}</div></div><div><div class="label">R:R</div><div class="val">${rr.toFixed(1)}:1</div></div></div><div class="signal-filters">${dims} | ${filters}</div><div class="signal-meta" style="margin-top:4px">${fmtTime(s.created_at)}${s.emailed?' | Email sent':''}</div></div>`;
+        return `<div class="signal ${s.direction}"><div class="signal-header"><span class="signal-dir ${s.direction}">${isL?'LONG':'SHORT'}</span><span class="signal-sym">${s.base}/USDT</span><span class="signal-meta">${s.timeframe} | ${s.strategy}</span></div><div class="signal-prices"><div><div class="label">Entry</div><div class="val">${fmtPrice(s.entry_price)}</div></div><div><div class="label">Stop Loss</div><div class="val sl">${fmtPrice(s.stop_loss)}</div></div><div><div class="label">Take Profit</div><div class="val tp">${fmtPrice(s.take_profit)}</div></div><div><div class="label">R:R</div><div class="val">${rr.toFixed(1)}:1</div></div></div><div class="signal-filters">${quality}</div><div class="signal-filters">${dims} | ${filters}</div><div class="signal-meta" style="margin-top:4px">${fmtTime(s.created_at)}${s.emailed?' | Email sent':''}${result}</div></div>`;
       }).join('') + '</div>';
     } else {
       document.getElementById('signals').innerHTML = '<div class="empty">No signals detected yet. Scanner runs every 15 minutes.</div>';

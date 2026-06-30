@@ -10,6 +10,7 @@
 // OKX 合约ID: BTC-USDT-SWAP, ETH-USDT-SWAP 等
 
 import https from 'node:https';
+import { fileURLToPath } from 'node:url';
 
 // ==================== 配置 ====================
 const COIN_CONFIGS = [
@@ -45,7 +46,29 @@ const COIN_CONFIGS = [
 ];
 
 // OKX bar 格式映射
+const MAJOR_BASES = new Set(['BTC', 'ETH', 'SOL', 'AVAX', 'LINK', 'XRP', 'DOGE', 'ADA', 'BNB', 'SUI']);
+
+function defaultDimensions(cfg) {
+  const dimsByStrategy = {
+    trend_pullback: ['volatility', 'btc_trend', 'funding'],
+    rsi_divergence: ['volatility', 'btc_trend', 'funding'],
+    volume_breakout: ['volume', 'volatility', 'btc_trend', 'funding'],
+    bollinger_reversion: ['volatility', 'funding'],
+  };
+  const dims = [...(dimsByStrategy[cfg.strategy] || ['volatility', 'funding'])];
+  if (!MAJOR_BASES.has(cfg.base)) dims.push('OI');
+  return dims;
+}
+
+for (const cfg of COIN_CONFIGS) {
+  if (cfg.dimensions.length === 0) cfg.dimensions = defaultDimensions(cfg);
+}
+
 const TF_MAP = { '1h': '1H', '4h': '4H', '15m': '15m' };
+
+const DEFAULT_FEE_RATE = +(process.env.FEE_RATE || 0.0005);
+const DEFAULT_SLIPPAGE_RATE = +(process.env.SLIPPAGE_RATE || 0.001);
+const MIN_SIGNAL_SCORE = +(process.env.MIN_SIGNAL_SCORE || 60);
 
 // ==================== HTTP 工具 ====================
 function fetchJson(url) {
@@ -161,6 +184,124 @@ function bollingerBands(closes, period = 20, mult = 2) {
   return { upper, middle: mid, lower };
 }
 
+export function estimateTradingCost({
+  entry,
+  stopLoss,
+  takeProfit,
+  feeRate = DEFAULT_FEE_RATE,
+  slippageRate = DEFAULT_SLIPPAGE_RATE,
+  fundingRate = 0,
+}) {
+  const risk = Math.abs(entry - stopLoss);
+  const reward = Math.abs(takeProfit - entry);
+  const totalCostPct = +(feeRate * 2 + slippageRate * 2 + Math.abs(fundingRate)).toFixed(6);
+  const costInPrice = +(entry * totalCostPct).toFixed(8);
+  const grossRiskReward = risk > 0 ? +(reward / risk).toFixed(4) : 0;
+  const netRiskReward = risk > 0 ? +((reward - costInPrice * 2) / risk).toFixed(4) : 0;
+
+  return { feeRate, slippageRate, fundingRate, totalCostPct, costInPrice, grossRiskReward, netRiskReward };
+}
+
+export function buildTradePlan(strategy, direction, candles) {
+  const i = candles.length - 1;
+  const closes = candles.map(c => c.c);
+  const entry = closes[i];
+  const atrs = calcAtr(candles);
+  const atr = atrs[i];
+  if (!atr || atr <= 0) return null;
+
+  const plan = (sl, tp) => {
+    const stopLoss = +sl.toPrecision(12);
+    const takeProfit = +tp.toPrecision(12);
+    return {
+      direction, entry, atr,
+      sl: stopLoss, tp: takeProfit,
+      stopLoss, takeProfit,
+    };
+  };
+
+  if (strategy === 'bollinger_reversion') {
+    const bb = bollingerBands(closes);
+    const middle = bb.middle[i] || entry;
+    const sl = direction === 'long' ? entry - 1.5 * atr : entry + 1.5 * atr;
+    const tp = direction === 'long' ? Math.max(middle, entry + atr) : Math.min(middle, entry - atr);
+    return plan(sl, tp);
+  }
+
+  if (strategy === 'volume_breakout' || strategy === 'breakout' || strategy === 'bollinger_breakout') {
+    const sl = direction === 'long' ? entry - 1.8 * atr : entry + 1.8 * atr;
+    const tp = direction === 'long' ? entry + 4.5 * atr : entry - 4.5 * atr;
+    return plan(sl, tp);
+  }
+
+  if (strategy === 'rsi_divergence' || strategy === 'rsi_reversion') {
+    const sl = direction === 'long' ? entry - 1.6 * atr : entry + 1.6 * atr;
+    const tp = direction === 'long' ? entry + 3 * atr : entry - 3 * atr;
+    return plan(sl, tp);
+  }
+
+  if (strategy === 'trend_pullback' || strategy === 'ema_trend' || strategy === 'rsi_trend') {
+    const e50 = ema(closes, 50);
+    const trendLine = e50[i] || entry;
+    const sl = direction === 'long'
+      ? Math.min(entry - 1.8 * atr, trendLine)
+      : Math.max(entry + 1.8 * atr, trendLine);
+    const tp = direction === 'long' ? entry + 3.6 * atr : entry - 3.6 * atr;
+    return plan(sl, tp);
+  }
+
+  const sl = direction === 'long' ? entry - 2 * atr : entry + 2 * atr;
+  const tp = direction === 'long' ? entry + 4 * atr : entry - 4 * atr;
+  return plan(sl, tp);
+}
+
+export function scoreSignal({ profitFactor = 1, winRate = 50, cost, filterDetails = {} }) {
+  let score = 35;
+  score += Math.min(25, Math.max(0, (profitFactor - 1) * 12));
+  score += Math.min(20, Math.max(-10, (winRate - 50) * 1.2));
+  score += Math.min(20, Math.max(-20, (cost.netRiskReward - 1) * 18));
+  score -= Math.min(15, cost.totalCostPct * 1000);
+
+  const filters = Object.values(filterDetails);
+  for (const filter of filters) score += filter.passed ? 3 : -12;
+
+  const rounded = Math.max(0, Math.min(100, Math.round(score)));
+  return {
+    score: rounded,
+    passed: rounded >= MIN_SIGNAL_SCORE && cost.netRiskReward >= 1,
+  };
+}
+
+export function evaluateSignalOutcome(signal, candles) {
+  const signalTs = new Date(signal.signal_time || signal.created_at).getTime();
+  const risk = Math.abs(signal.entry_price - signal.stop_loss);
+  if (!risk) return null;
+
+  for (const c of candles) {
+    if (c.ts <= signalTs) continue;
+
+    const hitSl = signal.direction === 'long' ? c.l <= signal.stop_loss : c.h >= signal.stop_loss;
+    const hitTp = signal.direction === 'long' ? c.h >= signal.take_profit : c.l <= signal.take_profit;
+    if (!hitSl && !hitTp) continue;
+
+    const conservativeResult = hitSl ? 'hit_sl' : 'hit_tp';
+    const exitPrice = conservativeResult === 'hit_sl' ? signal.stop_loss : signal.take_profit;
+    const pnlR = conservativeResult === 'hit_sl' ? -1 : Math.abs(signal.take_profit - signal.entry_price) / risk;
+
+    return {
+      trade_result: conservativeResult,
+      actual_exit_time: new Date(c.ts).toISOString(),
+      actual_entry: signal.entry_price,
+      actual_sl: conservativeResult === 'hit_sl' ? exitPrice : null,
+      actual_tp: conservativeResult === 'hit_tp' ? exitPrice : null,
+      actual_pnl: signal.direction === 'long' ? exitPrice - signal.entry_price : signal.entry_price - exitPrice,
+      actual_pnl_r: +pnlR.toFixed(4),
+    };
+  }
+
+  return null;
+}
+
 function calcMacd(closes, fast = 12, slow = 26, sig = 9) {
   const line = ema(closes, fast).map((v, i) => v - ema(closes, slow)[i]);
   const validLine = line.filter(v => v !== 0);
@@ -183,11 +324,7 @@ function detectSignal(candles, strategy) {
   const atrVal = atrs[i];
   if (!atrVal || atrVal <= 0) return null;
 
-  const mk = (dir) => ({
-    direction: dir, entry: closes[i], atr: atrVal,
-    sl: dir === 'long' ? closes[i] - 2 * atrVal : closes[i] + 2 * atrVal,
-    tp: dir === 'long' ? closes[i] + 4 * atrVal : closes[i] - 4 * atrVal,
-  });
+  const mk = (dir) => buildTradePlan(strategy, dir, candles);
 
   switch (strategy) {
     case 'ema_cross': {
@@ -411,11 +548,59 @@ async function sbSelect(table, filter, limit = 1) {
   return Array.isArray(data) ? data : [];
 }
 
+async function sbQuery(table, query) {
+  const res = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, {
+    headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` },
+  });
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
+async function sbUpdate(table, filter, row) {
+  const res = await fetch(`${SB_URL}/rest/v1/${table}?${filter}`, {
+    method: 'PATCH',
+    headers: {
+      'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`,
+      'Prefer': 'return=minimal', 'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(row),
+  });
+  return res.status < 300;
+}
+
 async function isInCooldown(instId, direction, timeframe) {
   const ms = timeframe === '4h' ? 8 * 3600000 : 4 * 3600000;
   const cutoff = new Date(Date.now() - ms).toISOString();
   const data = await sbSelect('ds_signals', `symbol=eq.${instId}&direction=eq.${direction}&created_at=gte.${cutoff}`, 1);
   return data.length > 0;
+}
+
+async function updateOpenSignalOutcomes() {
+  const select = [
+    'id', 'symbol', 'timeframe', 'direction', 'entry_price', 'stop_loss',
+    'take_profit', 'signal_time', 'created_at',
+  ].join(',');
+  const signals = await sbQuery(
+    'ds_signals',
+    `select=${select}&trade_result=is.null&order=created_at.asc&limit=50`
+  );
+  let updated = 0;
+
+  for (const s of signals) {
+    try {
+      const candles = await fetchKlines(s.symbol, TF_MAP[s.timeframe] || '4H', 120);
+      const outcome = evaluateSignalOutcome(s, candles);
+      if (!outcome) continue;
+      const ok = await sbUpdate('ds_signals', `id=eq.${s.id}`, outcome);
+      if (ok) updated++;
+    } catch (e) {
+      console.warn(`[Tracker] ${s.symbol} ${s.timeframe}: ${e.message}`);
+    }
+    await new Promise(r => setTimeout(r, 150));
+  }
+
+  console.log(`[Tracker] Updated ${updated}/${signals.length} open signals`);
+  return updated;
 }
 
 // ==================== 邮件 (Gmail SMTP) ====================
@@ -461,6 +646,7 @@ async function main() {
 
   console.log(`[Scanner] Start at ${new Date().toISOString()}`);
   console.log(`[Scanner] ${COIN_CONFIGS.length} coin configs | Exchange: OKX`);
+  await updateOpenSignalOutcomes();
 
   // 1. BTC 4h 数据 (全局共享)
   let btcCandles4h = [];
@@ -517,6 +703,25 @@ async function main() {
         scanned++; continue;
       }
 
+      const cost = estimateTradingCost({
+        entry: signal.entry,
+        stopLoss: signal.sl,
+        takeProfit: signal.tp,
+        fundingRate,
+      });
+      const score = scoreSignal({
+        strategy: cfg.strategy,
+        direction: signal.direction,
+        profitFactor: cfg.profitFactor,
+        winRate: cfg.winRate,
+        cost,
+        filterDetails: details,
+      });
+      if (!score.passed) {
+        console.log(`[Scanner] ${cfg.base}/${cfg.timeframe} ${signal.direction} score ${score.score} blocked`);
+        scanned++; continue;
+      }
+
       // 3d. 冷却期
       const cooled = !(await isInCooldown(cfg.instId, signal.direction, cfg.timeframe));
       if (!cooled) { console.log(`[Scanner] ${cfg.base}/${cfg.timeframe} ${signal.direction} cooldown`); scanned++; continue; }
@@ -527,10 +732,15 @@ async function main() {
         strategy: cfg.strategy, dimensions: cfg.dimensions,
         direction: signal.direction, entry_price: signal.entry,
         stop_loss: signal.sl, take_profit: signal.tp, atr_value: signal.atr,
-        filter_details: details, signal_time: new Date().toISOString(), emailed: false,
+        filter_details: details,
+        estimated_cost_pct: cost.totalCostPct,
+        net_risk_reward: cost.netRiskReward,
+        signal_score: score.score,
+        score_details: { cost, minScore: MIN_SIGNAL_SCORE },
+        signal_time: new Date().toISOString(), emailed: false,
       });
 
-      detected.push({ ...cfg, direction: signal.direction, entry: signal.entry, sl: signal.sl, tp: signal.tp, details });
+      detected.push({ ...cfg, direction: signal.direction, entry: signal.entry, sl: signal.sl, tp: signal.tp, details, cost, score: score.score });
       scanned++;
       console.log(`[Scanner] >>> SIGNAL: ${cfg.base}/${cfg.timeframe} ${cfg.strategy} ${signal.direction} @ ${signal.entry.toFixed(4)}`);
 
@@ -561,4 +771,6 @@ async function main() {
   console.log(`[Scanner] Done: ${scanned} scanned, ${detected.length} signals, ${errors} errors`);
 }
 
-main().catch(err => { console.error('[Scanner] Fatal:', err); process.exit(1); });
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch(err => { console.error('[Scanner] Fatal:', err); process.exit(1); });
+}
